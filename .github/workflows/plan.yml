@@ -1,4 +1,4 @@
-name: Terraform Apply
+name: Terraform Plan
 
 on:
   pull_request:
@@ -17,11 +17,11 @@ jobs:
       - name: Determine environment
         id: set-env
         run: |
-          if [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
+          if [[ "${{ github.base_ref }}" == "main" ]]; then
             echo "environment=prod" >> $GITHUB_OUTPUT
-          elif [[ "${{ github.ref }}" == "refs/heads/staging" ]]; then
+          elif [[ "${{ github.base_ref }}" == "staging" ]]; then
             echo "environment=staging" >> $GITHUB_OUTPUT
-          elif [[ "${{ github.ref }}" == "refs/heads/develop" ]]; then
+          elif [[ "${{ github.base_ref }}" == "develop" ]]; then
             echo "environment=development" >> $GITHUB_OUTPUT
           fi
   plan:
@@ -61,8 +61,19 @@ jobs:
       - name: Terraform Init
         run: terraform init -reconfigure
 
-      - name: Terraform Plan
-        run: tfcmt plan --patch -- terraform plan
+      - name: Terraform Plan (with output file)
+        run: |
+          terraform plan -out=tfplan
+          tfcmt plan --patch -- terraform show -no-color tfplan
         env:
           GITHUB_TOKEN: ${{ github.token }}
+
+      - name: Upload Terraform Plan
+        uses: actions/upload-artifact@v4
+        with:
+          name: terraform-plan-${{ github.event.pull_request.number }}-${{ needs.determine-environment.outputs.environment }}
+          path: |
+            tfplan
+            .terraform.lock.hcl
+          retention-days: 1
   

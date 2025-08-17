@@ -17,17 +17,18 @@ jobs:
       - name: Determine environment
         id: set-env
         run: |
-          if [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
+          if [[ "${{ github.base_ref }}" == "main" ]]; then
             echo "environment=prod" >> $GITHUB_OUTPUT
-          elif [[ "${{ github.ref }}" == "refs/heads/staging" ]]; then
+          elif [[ "${{ github.base_ref }}" == "staging" ]]; then
             echo "environment=staging" >> $GITHUB_OUTPUT
-          elif [[ "${{ github.ref }}" == "refs/heads/develop" ]]; then
+          elif [[ "${{ github.base_ref }}" == "develop" ]]; then
             echo "environment=development" >> $GITHUB_OUTPUT
           fi
   apply:
     needs: determine-environment
     runs-on: ubuntu-latest
     environment: ${{ needs.determine-environment.outputs.environment }}_apply
+    if: github.event.pull_request.merged == true
 
     # Add permissions for OIDC
     permissions:
@@ -39,6 +40,12 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+
+      - name: Download Terraform Plan
+        uses: actions/download-artifact@v4
+        with:
+          name: terraform-plan-${{ github.event.pull_request.number }}-${{ needs.determine-environment.outputs.environment }}
+          path: ./
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
@@ -61,5 +68,15 @@ jobs:
       - name: Terraform Init
         run: terraform init -reconfigure
 
-      - name: Terraform Plan
-        run: tfcmt apply -- terraform apply -auto-approve
+      - name: Verify Plan File
+        run: |
+          if [ ! -f "tfplan" ]; then
+            echo "Error: Plan file not found!"
+            exit 1
+          fi
+          echo "Plan file found, proceeding with apply..."
+
+      - name: Terraform Apply
+        run: tfcmt apply -- terraform apply tfplan
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
