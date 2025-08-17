@@ -6,7 +6,7 @@ on:
       - main
       - staging
       - develop
-    types: [closed]
+    types: [opened, synchronize]
 
 jobs:
   determine-environment:
@@ -24,10 +24,10 @@ jobs:
           elif [[ "${{ github.ref }}" == "refs/heads/develop" ]]; then
             echo "environment=development" >> $GITHUB_OUTPUT
           fi
-  apply:
+  plan:
     needs: determine-environment
     runs-on: ubuntu-latest
-    environment: ${{ needs.determine-environment.outputs.environment }}_apply
+    environment: ${{ needs.determine-environment.outputs.environment }}
 
     # Add permissions for OIDC
     permissions:
@@ -62,4 +62,7 @@ jobs:
         run: terraform init -reconfigure
 
       - name: Terraform Plan
-        run: tfcmt apply -- terraform apply -auto-approve
+        run: tfcmt plan --patch -- terraform plan
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+  
