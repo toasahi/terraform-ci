@@ -1,4 +1,4 @@
-name: Terraform Apply
+name: Terraform Plan
 
 on:
   pull_request:
@@ -6,7 +6,7 @@ on:
       - main
       - staging
       - develop
-    types: [closed]
+    types: [opened, synchronize]
 
 jobs:
   determine-environment:
@@ -24,11 +24,10 @@ jobs:
           elif [[ "${{ github.base_ref }}" == "develop" ]]; then
             echo "environment=development" >> $GITHUB_OUTPUT
           fi
-  apply:
+  plan:
     needs: determine-environment
     runs-on: ubuntu-latest
-    environment: ${{ needs.determine-environment.outputs.environment }}_apply
-    if: github.event.pull_request.merged == true
+    environment: ${{ needs.determine-environment.outputs.environment }}
 
     # Add permissions for OIDC
     permissions:
@@ -40,12 +39,6 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-
-      - name: Download Terraform Plan
-        uses: actions/download-artifact@v4
-        with:
-          name: terraform-plan-${{ github.event.pull_request.number }}-${{ needs.determine-environment.outputs.environment }}
-          path: ./
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
@@ -79,15 +72,21 @@ jobs:
       - name: Terraform Init
         run: terraform init -reconfigure
 
-      - name: Verify Plan File
+      - name: Terraform Plan (with output file)
         run: |
-          if [ ! -f "tfplan" ]; then
-            echo "Error: Plan file not found!"
-            exit 1
-          fi
-          echo "Plan file found, proceeding with apply..."
-
-      - name: Terraform Apply
-        run: tfcmt apply -- terraform apply tfplan
+          terraform plan -out=tfplan
+          tfcmt plan --patch -- terraform show -no-color tfplan
         env:
           GITHUB_TOKEN: ${{ github.token }}
+
+      - name: Upload Terraform Plan
+        uses: actions/upload-artifact@v4
+        with:
+          name: terraform-plan-${{ github.event.pull_request.number }}-${{ needs.determine-environment.outputs.environment }}
+          path: |
+            tfplan
+            .terraform.lock.hcl
+          retention-days: 5
+          # Overwrite existing artifact if it exists
+          overwrite: true
+  
