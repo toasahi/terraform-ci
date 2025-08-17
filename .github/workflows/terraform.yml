@@ -6,6 +6,7 @@ on:
       - main
       - staging
       - develop
+      - feature
     types: [opened, synchronize]
 
 jobs:
@@ -27,6 +28,12 @@ jobs:
   plan:
     needs: determine-environment
     uses: ./.github/workflows/terraform-reusable.yml
+    # Add permissions for OIDC
+    permissions:
+      id-token: write
+      contents: read
+      pull-requests: write
+      issues: write
     with:
       environment: ${{ needs.determine-environment.outputs.environment }}
       pr_number: ${{ github.event.pull_request.number }}
