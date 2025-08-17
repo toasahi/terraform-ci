@@ -55,8 +55,19 @@ jobs:
       
       - name: tfcmt install
         run: |
-          gh release download -R suzuki-shunsuke/tfcmt v4.14.0 -p tfcmt_darwin_arm64.tar.gz
-          gh attestation verify tfcmt_darwin_arm64.tar.gz -R suzuki-shunsuke/tfcmt --signer-workflow suzuki-shunsuke/go-release-workflow/.github/workflows/release.yaml
+          # Download tfcmt for Linux x64
+          gh release download -R suzuki-shunsuke/tfcmt v4.14.0 -p tfcmt_linux_amd64.tar.gz
+          
+          # Verify the downloaded file
+          gh attestation verify tfcmt_linux_amd64.tar.gz -R suzuki-shunsuke/tfcmt --signer-workflow suzuki-shunsuke/go-release-workflow/.github/workflows/release.yaml
+          
+          # Extract and install
+          tar -xzf tfcmt_linux_amd64.tar.gz
+          chmod +x tfcmt
+          sudo mv tfcmt /usr/local/bin/
+          
+          # Verify installation
+          tfcmt --version
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
