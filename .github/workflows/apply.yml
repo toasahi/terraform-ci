@@ -32,9 +32,6 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-      - name: debug
-        run: |
-          echo "${{ vars.AWS_ROLE_ARN }}"
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
@@ -55,7 +52,7 @@ jobs:
   apply:
     needs: [plan, determine-environment]
     runs-on: ubuntu-latest
-    environment: ${{ needs.determine-environment.outputs.environment }}-apply
+    environment: ${{ needs.determine-environment.outputs.environment }}_apply
 
     # Add permissions for OIDC
     permissions:
