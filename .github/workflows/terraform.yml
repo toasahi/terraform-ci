@@ -6,6 +6,7 @@ on:
       - main
       - staging
       - develop
+      - feature
     types: [opened, synchronize]
 
 jobs:
