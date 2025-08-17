@@ -75,5 +75,7 @@ jobs:
           path: |
             tfplan
             .terraform.lock.hcl
-          retention-days: 1
+          retention-days: 5
+          # Overwrite existing artifact if it exists
+          overwrite: true
   
