@@ -39,8 +39,10 @@ jobs:
           role-to-assume: ${{ vars.AWS_ROLE_ARN }}
           aws-region: ap-northeast-1
       
-      - name: debug
-        run: aws s3 ls
+      - name: tfcmt install
+        run: |
+          gh release download -R suzuki-shunsuke/tfcmt v4.14.0 -p tfcmt_darwin_arm64.tar.gz
+          gh attestation verify tfcmt_darwin_arm64.tar.gz -R suzuki-shunsuke/tfcmt --signer-workflow suzuki-shunsuke/go-release-workflow/.github/workflows/release.yaml
 
       - name: Set up Terraform
         uses: hashicorp/setup-terraform@v3
