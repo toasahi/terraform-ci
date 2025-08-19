@@ -42,7 +42,9 @@ jobs:
           ref: ${{ inputs.trigger_ref }}
     
       - name: debug
-        run: echo "${{ vars.AWS_ROLE_ARN}}"
+        run: |
+            echo "${{ vars.AWS_ROLE_ARN}}"
+            echo "${{ inputs.environment}}"
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
@@ -74,10 +76,13 @@ jobs:
           terraform_version: 1.12.2
 
       - name: Terraform Init
-        run: terraform init -reconfigure
+        run: |
+            cd environments/${{ inputs.environment }}
+            terraform init -reconfigure
 
       - name: Terraform Plan
         run: |
+          cd environments/${{ inputs.environment }}
           terraform plan -out=tfplan
           tfcmt plan --patch -- terraform show -no-color tfplan
         env:
@@ -88,8 +93,8 @@ jobs:
         with:
           name: terraform-plan-${{ inputs.pr_number }}-${{ inputs.environment }}
           path: |
-            tfplan
-            .terraform.lock.hcl
+            environments/${{ inputs.environment }}/tfplan
+            environments/${{ inputs.environment }}/.terraform.lock.hcl
           retention-days: 5
           # Overwrite existing artifact if it exists
           overwrite: true
@@ -149,7 +154,9 @@ jobs:
           terraform_version: 1.12.2
 
       - name: Terraform Init
-        run: terraform init -reconfigure
+        run: |
+            cd environments/${{ inputs.environment }}
+            terraform init -reconfigure
 
       - name: Verify Plan File
         run: |
@@ -160,6 +167,8 @@ jobs:
           echo "Plan file found, proceeding with apply..."
 
       - name: Terraform Apply
-        run: tfcmt apply -- terraform apply tfplan
+        run: |
+            cd environments/${{ inputs.environment }}
+            tfcmt apply -- terraform apply tfplan
         env:
           GITHUB_TOKEN: ${{ github.token }}
