@@ -99,6 +99,25 @@ jobs:
           # Overwrite existing artifact if it exists
           overwrite: true
 
+      - name: Debug - List files to verify .terraform.lock.hcl exists
+        run: |
+          echo "Files in environments/${{ inputs.environment }}:"
+          ls -la environments/${{ inputs.environment }}/
+          echo "Checking for .terraform.lock.hcl:"
+          if [ -f "environments/${{ inputs.environment }}/.terraform.lock.hcl" ]; then
+            echo "✓ .terraform.lock.hcl found"
+            ls -la environments/${{ inputs.environment }}/.terraform.lock.hcl
+          else
+            echo "✗ .terraform.lock.hcl not found"
+          fi
+          echo "Checking for tfplan:"
+          if [ -f "environments/${{ inputs.environment }}/tfplan" ]; then
+            echo "✓ tfplan found"
+            ls -la environments/${{ inputs.environment }}/tfplan
+          else
+            echo "✗ tfplan not found"
+          fi
+
   apply:
     needs: plan
     if: inputs.is_apply == true
@@ -122,7 +141,23 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: terraform-plan-${{ inputs.pr_number }}-${{ inputs.environment }}
-          path: ./
+          path: downloaded-artifacts/
+
+      - name: Debug - Check downloaded artifacts
+        run: |
+          echo "Downloaded artifacts structure:"
+          find downloaded-artifacts/ -type f -exec ls -la {} \;
+
+      - name: Move artifacts to correct location
+        run: |
+          mkdir -p environments/${{ inputs.environment }}/
+          mv downloaded-artifacts/environments/${{ inputs.environment }}/tfplan environments/${{ inputs.environment }}/tfplan
+          if [ -f "downloaded-artifacts/environments/${{ inputs.environment }}/.terraform.lock.hcl" ]; then
+            mv downloaded-artifacts/environments/${{ inputs.environment }}/.terraform.lock.hcl environments/${{ inputs.environment }}/.terraform.lock.hcl
+            echo "✓ .terraform.lock.hcl moved successfully"
+          else
+            echo "⚠️ .terraform.lock.hcl not found in artifacts, will use existing one from checkout"
+          fi
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
@@ -160,15 +195,16 @@ jobs:
 
       - name: Verify Plan File
         run: |
-          if [ ! -f "tfplan" ]; then
+          if [ ! -f "environments/${{ inputs.environment }}/tfplan" ]; then
             echo "Error: Plan file not found!"
+            echo "Files in environments/${{ inputs.environment }}:"
+            ls -la environments/${{ inputs.environment }}/ || echo "Directory does not exist"
             exit 1
           fi
           echo "Plan file found, proceeding with apply..."
 
       - name: Terraform Apply
         run: |
-            mv tfplan environments/${{ inputs.environment }}/tfplan
             cd environments/${{ inputs.environment }}
             tfcmt apply -- terraform apply tfplan
         env:
